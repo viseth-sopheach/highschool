@@ -4,18 +4,23 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 public final class SecurityUtils {
-   private SecurityUtils() {}
+   private SecurityUtils() {
+   }
 
-   public static UserPrincipal currentPrincipal() {
+   private static JwtAuthenticationToken currentToken() {
       Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-      if (auth == null || !(auth.getPrincipal() instanceof UserPrincipal principal)) {
+      if (auth == null || !(auth instanceof JwtAuthenticationToken token)) {
          throw new IllegalStateException("No authenticated user in context");
       }
-      return principal;
+      return token;
    }
 
    public static Long currentUserId() {
-      return currentPrincipal().getId();
+      return currentToken().getUserId();
+   }
+
+   public static String currentUsername() {
+      return currentToken().getPrincipal().toString();
    }
 
    public static boolean hasAuthority(String authority) {
