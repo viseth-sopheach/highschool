@@ -17,13 +17,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.Base64;
+import java.util.HexFormat;
 
 @Service
 @RequiredArgsConstructor
@@ -137,7 +140,22 @@ public class AuthService {
       return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
    }
 
+   /**
+    * Refresh tokens are looked up by hash ({@code findByTokenHash}), so the hash
+    * MUST be deterministic for a given input. BCrypt salts itself on every call,
+    * so the same raw token produced a different hash each time — the lookup could
+    * never match what was stored at issuance. Refresh tokens are already
+    * high-entropy random values (64 bytes from SecureRandom), so unlike a
+    * password they don't need a slow, salted KDF: a fast deterministic digest
+    * (SHA-256) is the correct tool here, the same way you'd hash an API key.
+    */
    private String hashToken(String raw) {
-      return BCrypt.hashpw(raw, BCrypt.gensalt(10));
+      try {
+         MessageDigest digest = MessageDigest.getInstance("SHA-256");
+         byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
+         return HexFormat.of().formatHex(hash);
+      } catch (NoSuchAlgorithmException e) {
+         throw new IllegalStateException("SHA-256 algorithm unavailable", e);
+      }
    }
 }
