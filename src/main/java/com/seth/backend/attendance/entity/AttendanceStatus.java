@@ -1,4 +1,5 @@
 package com.seth.backend.attendance.entity;
 
-public class AttendanceStatus {
+public enum AttendanceStatus {
+   PRESENT, ABSENT, LATE, EXCUSED
 }
