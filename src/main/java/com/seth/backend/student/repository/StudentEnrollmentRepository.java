@@ -17,9 +17,12 @@ public interface StudentEnrollmentRepository extends JpaRepository<StudentEnroll
    @EntityGraph(attributePaths = {"student", "student.user"})
    Page<StudentEnrollment> findBySchoolClass_Id(Long schoolClassId, Pageable pageable);
 
-   boolean existsByStudent_IdAndSchoolClass_AcademicYear_IdAndStatus(
+   /** Backed by uq_one_active_enrollment_per_year (V13) — DB now enforces this too. */
+   boolean existsByStudent_IdAndAcademicYear_IdAndStatus(
            Long studentId, Long academicYearId, EnrollmentStatus status);
 
    @EntityGraph(attributePaths = {"schoolClass", "student"})
    Optional<StudentEnrollment> findWithRelationsById(Long id);
+
+   boolean existsBySchoolClass_IdAndClassPresidentTrue(Long schoolClassId);
 }

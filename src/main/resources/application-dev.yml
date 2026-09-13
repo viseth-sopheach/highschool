@@ -9,3 +9,8 @@ spring:
 logging:
   level:
     com.seth.backend: DEBUG
+app:
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://localhost:3000

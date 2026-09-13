@@ -9,3 +9,8 @@ spring:
 logging:
   level:
     com.seth.backend: INFO
+
+management:
+  endpoint:
+    health:
+      show-details: never

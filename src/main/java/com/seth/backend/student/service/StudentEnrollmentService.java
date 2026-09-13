@@ -15,6 +15,7 @@ import com.seth.backend.student.mapper.StudentEnrollmentMapper;
 import com.seth.backend.student.repository.StudentEnrollmentRepository;
 import com.seth.backend.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -43,7 +44,12 @@ public class StudentEnrollmentService {
               .orElseThrow(() -> ResourceNotFoundException.of("StudentEnrollment", id)));
    }
 
-   /** Business rule: a student cannot have two ACTIVE enrollments in the same academic year. */
+   /**
+    * Business rule: a student cannot have two ACTIVE enrollments in the same
+    * academic year. Checked here for a clean 422, and backed by
+    * uq_one_active_enrollment_per_year (V13) at the DB level in case two
+    * concurrent requests both pass this check.
+    */
    @Transactional
    public StudentEnrollmentResponse enroll(StudentEnrollmentRequest request) {
       Student student = studentRepository.findById(request.studentId())
@@ -51,7 +57,7 @@ public class StudentEnrollmentService {
       SchoolClass schoolClass = schoolClassRepository.findWithRelationsById(request.schoolClassId())
               .orElseThrow(() -> ResourceNotFoundException.of("SchoolClass", request.schoolClassId()));
 
-      boolean alreadyActive = enrollmentRepository.existsByStudent_IdAndSchoolClass_AcademicYear_IdAndStatus(
+      boolean alreadyActive = enrollmentRepository.existsByStudent_IdAndAcademicYear_IdAndStatus(
               student.getId(), schoolClass.getAcademicYear().getId(), EnrollmentStatus.ACTIVE);
       if (alreadyActive) {
          throw new BusinessRuleViolationException(
@@ -62,9 +68,17 @@ public class StudentEnrollmentService {
       StudentEnrollment enrollment = new StudentEnrollment();
       enrollment.setStudent(student);
       enrollment.setSchoolClass(schoolClass);
+      enrollment.setAcademicYear(schoolClass.getAcademicYear());
       enrollment.setStatus(EnrollmentStatus.ACTIVE);
 
-      return mapper.toResponse(enrollmentRepository.save(enrollment));
+      try {
+         return mapper.toResponse(enrollmentRepository.save(enrollment));
+      } catch (DataIntegrityViolationException ex) {
+         // Race lost to a concurrent request that also passed the check above.
+         throw new BusinessRuleViolationException(
+                 "Student already has an active enrollment for academic year "
+                         + schoolClass.getAcademicYear().getName() + ".");
+      }
    }
 
    @Transactional
@@ -73,6 +87,25 @@ public class StudentEnrollmentService {
               .orElseThrow(() -> ResourceNotFoundException.of("StudentEnrollment", id));
       enrollment.setStatus(status);
       return mapper.toResponse(enrollment);
+   }
+
+   /**
+    * Designates the class president for this enrollment's class/year.
+    * Unsets any existing president for the same class first — a class has
+    * at most one, enforced by uq_class_president_per_class (V13).
+    */
+   @Transactional
+   public StudentEnrollmentResponse setClassPresident(Long enrollmentId) {
+      StudentEnrollment target = enrollmentRepository.findWithRelationsById(enrollmentId)
+              .orElseThrow(() -> ResourceNotFoundException.of("StudentEnrollment", enrollmentId));
+
+      enrollmentRepository.findBySchoolClass_Id(target.getSchoolClass().getId(), Pageable.unpaged())
+              .stream()
+              .filter(StudentEnrollment::isClassPresident)
+              .forEach(e -> e.setClassPresident(false));
+
+      target.setClassPresident(true);
+      return mapper.toResponse(target);
    }
 
    /** IDOR guard for the student-facing "my enrollments" endpoint. */
