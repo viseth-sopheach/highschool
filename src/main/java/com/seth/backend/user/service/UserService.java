@@ -1,7 +1,10 @@
 package com.seth.backend.user.service;
 
+import com.seth.backend.audit.AuditActions;
+import com.seth.backend.audit.service.AuditLogService;
 import com.seth.backend.exception.DuplicateResourceException;
 import com.seth.backend.exception.ResourceNotFoundException;
+import com.seth.backend.security.SecurityUtils;
 import com.seth.backend.user.dto.UserCreateRequest;
 import com.seth.backend.user.dto.UserResponse;
 import com.seth.backend.user.dto.UserRoleAssignRequest;
@@ -20,13 +23,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
-/**
- * Admin-facing account provisioning. Deliberately separate from
- * AuthService: this module owns account/role lifecycle (create, lock,
- * role assignment), never login/token concerns.
- */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -36,6 +37,7 @@ public class UserService {
    private final RoleRepository roleRepository;
    private final UserMapper userMapper;
    private final PasswordEncoder passwordEncoder;
+   private final AuditLogService auditLogService;
 
    public Page<UserResponse> list(String search, Pageable pageable) {
       String normalized = (search == null || search.isBlank()) ? null : search.trim();
@@ -66,20 +68,26 @@ public class UserService {
       user.setStatus(UserStatus.ACTIVE);
       user.setRoles(resolveRoles(request.roleNames()));
 
-      return userMapper.toResponse(userRepository.save(user));
+      User saved = userRepository.save(user);
+      auditLogService.record(SecurityUtils.currentUserId(), AuditActions.USER_CREATED, "User", saved.getId(),
+              Map.of("username", saved.getUsername(), "roles", request.roleNames()));
+      return userMapper.toResponse(saved);
    }
 
-   /** Also clears lockout bookkeeping whenever status moves off LOCKED. */
    @Transactional
    public UserResponse updateStatus(Long id, UserStatusUpdateRequest request) {
       User user = userRepository.findWithRolesById(id)
               .orElseThrow(() -> ResourceNotFoundException.of("User", id));
 
+      UserStatus previous = user.getStatus();
       user.setStatus(request.status());
       if (request.status() != UserStatus.LOCKED) {
          user.setLockedUntil(null);
          user.setFailedLoginAttempts((short) 0);
       }
+
+      auditLogService.record(SecurityUtils.currentUserId(), AuditActions.USER_STATUS_CHANGED, "User", id,
+              Map.of("from", previous, "to", request.status()));
       return userMapper.toResponse(user);
    }
 
@@ -87,7 +95,13 @@ public class UserService {
    public UserResponse assignRoles(Long id, UserRoleAssignRequest request) {
       User user = userRepository.findWithRolesById(id)
               .orElseThrow(() -> ResourceNotFoundException.of("User", id));
+
+      Set<String> previousRoleNames = user.getRoles().stream().map(Role::getName)
+              .collect(Collectors.toCollection(TreeSet::new));
       user.setRoles(resolveRoles(request.roleNames()));
+
+      auditLogService.record(SecurityUtils.currentUserId(), AuditActions.USER_ROLES_CHANGED, "User", id,
+              Map.of("from", previousRoleNames, "to", request.roleNames()));
       return userMapper.toResponse(user);
    }
 

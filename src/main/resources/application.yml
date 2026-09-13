@@ -1,14 +1,48 @@
 spring:
   application:
     name: backend
+
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+        query:
+          plan_cache_max_size: 2048
+        generate_statistics: false
+
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
   profiles:
     active: dev
+
+server:
+  compression:
+    enabled: true
+    mime-types: application/json
+    min-response-size: 2048
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
 
 springdoc:
   api-docs:

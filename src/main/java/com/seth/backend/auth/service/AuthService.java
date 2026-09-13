@@ -1,5 +1,7 @@
 package com.seth.backend.auth.service;
 
+import com.seth.backend.audit.AuditActions;
+import com.seth.backend.audit.service.AuditLogService;
 import com.seth.backend.auth.dto.AuthResponse;
 import com.seth.backend.auth.dto.LoginRequest;
 import com.seth.backend.auth.dto.RefreshRequest;
@@ -27,6 +29,7 @@ import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -40,8 +43,16 @@ public class AuthService {
    private final RefreshTokenRepository refreshTokenRepository;
    private final JwtService jwtService;
    private final JwtProperties jwtProperties;
+   private final AuditLogService auditLogService;
 
-   @Transactional
+   /**
+    * noRollbackFor(BadCredentialsException) is load-bearing: this method
+    * rethrows that exception on bad credentials, and without the override
+    * Spring's default unchecked-exception rollback would also undo the
+    * failed-attempt counter increment inside registerFailedAttempt() —
+    * meaning lockout after N attempts would never actually trigger.
+    */
+   @Transactional(noRollbackFor = BadCredentialsException.class)
    public AuthResponse login(LoginRequest request) {
       User user = userRepository.findWithRolesAndPermissionsByUsername(request.username())
               .orElseThrow(() -> new BadCredentialsException("Invalid username or password."));
@@ -49,6 +60,8 @@ public class AuthService {
       if (user.getStatus() == UserStatus.LOCKED
               && user.getLockedUntil() != null
               && user.getLockedUntil().isAfter(OffsetDateTime.now())) {
+         auditLogService.record(user.getId(), AuditActions.LOGIN_FAILURE, "User", user.getId(),
+                 Map.of("reason", "account_locked"));
          throw new AccountLockedException("Account is locked until " + user.getLockedUntil());
       }
 
@@ -64,6 +77,7 @@ public class AuthService {
       user.setLockedUntil(null);
       user.setLastLoginAt(OffsetDateTime.now());
       userRepository.save(user);
+      auditLogService.record(user.getId(), AuditActions.LOGIN_SUCCESS, "User", user.getId());
 
       UserPrincipal principal = new UserPrincipal(user);
       String accessToken = jwtService.generateAccessToken(principal);
@@ -95,6 +109,7 @@ public class AuthService {
       RefreshToken rotated = saveRefreshToken(user, newRefreshTokenRaw);
       existing.setReplacedBy(rotated);
       refreshTokenRepository.save(existing);
+      auditLogService.record(user.getId(), AuditActions.TOKEN_REFRESH, "User", user.getId());
 
       return new AuthResponse(newAccessToken, newRefreshTokenRaw, jwtProperties.getAccessTokenExpirationMs());
    }
@@ -105,17 +120,26 @@ public class AuthService {
       refreshTokenRepository.findByTokenHash(hash).ifPresent(rt -> {
          rt.setRevoked(true);
          refreshTokenRepository.save(rt);
+         auditLogService.record(rt.getUser().getId(), AuditActions.LOGOUT, "User", rt.getUser().getId());
       });
    }
 
    private void registerFailedAttempt(User user) {
       short attempts = (short) (user.getFailedLoginAttempts() + 1);
       user.setFailedLoginAttempts(attempts);
-      if (attempts >= MAX_FAILED_ATTEMPTS) {
+      boolean justLocked = attempts >= MAX_FAILED_ATTEMPTS;
+      if (justLocked) {
          user.setStatus(UserStatus.LOCKED);
          user.setLockedUntil(OffsetDateTime.now().plusMinutes(LOCK_DURATION_MINUTES));
       }
       userRepository.save(user);
+
+      auditLogService.record(user.getId(), AuditActions.LOGIN_FAILURE, "User", user.getId(),
+              Map.of("failedAttempts", attempts));
+      if (justLocked) {
+         auditLogService.record(user.getId(), AuditActions.ACCOUNT_LOCKED, "User", user.getId(),
+                 Map.of("lockedUntil", user.getLockedUntil().toString()));
+      }
    }
 
    private String issueRefreshToken(User user) {
@@ -140,15 +164,6 @@ public class AuthService {
       return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
    }
 
-   /**
-    * Refresh tokens are looked up by hash ({@code findByTokenHash}), so the hash
-    * MUST be deterministic for a given input. BCrypt salts itself on every call,
-    * so the same raw token produced a different hash each time — the lookup could
-    * never match what was stored at issuance. Refresh tokens are already
-    * high-entropy random values (64 bytes from SecureRandom), so unlike a
-    * password they don't need a slow, salted KDF: a fast deterministic digest
-    * (SHA-256) is the correct tool here, the same way you'd hash an API key.
-    */
    private String hashToken(String raw) {
       try {
          MessageDigest digest = MessageDigest.getInstance("SHA-256");
