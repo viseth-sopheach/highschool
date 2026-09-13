@@ -12,21 +12,16 @@ import java.util.Optional;
 
 public interface TeacherRepository extends JpaRepository<Teacher, Long> {
 
-   /**
-    * {@code :search} matches teacher_code/khmer_name/english_name via a
-    * substring LIKE, which needs the pg_trgm GIN indexes from V9 to stay
-    * fast once the table grows past a few thousand rows — a plain B-tree
-    * index can't serve a leading-wildcard LIKE.
-    */
    @EntityGraph(attributePaths = "user")
    @Query("""
            select t from Teacher t
-           where (:search is null
+           where t.school.id = :schoolId
+             and (:search is null
                   or lower(t.khmerName) like lower(concat('%', :search, '%'))
                   or lower(t.englishName) like lower(concat('%', :search, '%'))
                   or lower(t.teacherCode) like lower(concat('%', :search, '%')))
            """)
-   Page<Teacher> search(@Param("search") String search, Pageable pageable);
+   Page<Teacher> search(@Param("schoolId") Long schoolId, @Param("search") String search, Pageable pageable);
 
    @EntityGraph(attributePaths = "user")
    Optional<Teacher> findWithUserById(Long id);
@@ -34,7 +29,7 @@ public interface TeacherRepository extends JpaRepository<Teacher, Long> {
    @EntityGraph(attributePaths = "user")
    Optional<Teacher> findWithUserByUserId(Long userId);
 
-   boolean existsByTeacherCode(String teacherCode);
+   boolean existsBySchool_IdAndTeacherCode(Long schoolId, String teacherCode);
 
    boolean existsByUserId(Long userId);
 }

@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -43,6 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       if (jwtService.isTokenValid(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
          String username = jwtService.extractUsername(token);
          Long userId = jwtService.extractUserId(token);
+         Long schoolId = jwtService.extractSchoolId(token);
          List<String> authorityStrings = jwtService.extractAuthorities(token);
 
          List<GrantedAuthority> authorities = authorityStrings.stream()
@@ -50,7 +50,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                  .map(a -> (GrantedAuthority) a)
                  .toList();
 
-         JwtAuthenticationToken authToken = new JwtAuthenticationToken(userId, username, authorities);
+         JwtAuthenticationToken authToken = new JwtAuthenticationToken(userId, schoolId, username, authorities);
          authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
          SecurityContextHolder.getContext().setAuthentication(authToken);
       }

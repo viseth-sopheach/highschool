@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 public class UserPrincipal implements UserDetails {
 
    private final Long id;
+   private final Long schoolId;
    private final String username;
    private final String passwordHash;
    private final boolean enabled;
@@ -22,6 +23,7 @@ public class UserPrincipal implements UserDetails {
 
    public UserPrincipal(User user) {
       this.id = user.getId();
+      this.schoolId = user.getSchool().getId();
       this.username = user.getUsername();
       this.passwordHash = user.getPasswordHash();
       this.enabled = user.getStatus() == com.seth.backend.user.entity.UserStatus.ACTIVE;
@@ -42,6 +44,7 @@ public class UserPrincipal implements UserDetails {
    }
 
    public Long getId() { return id; }
+   public Long getSchoolId() { return schoolId; }
 
    @Override public Set<GrantedAuthority> getAuthorities() { return authorities; }
    @Override public String getPassword() { return passwordHash; }

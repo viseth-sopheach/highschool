@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import com.seth.backend.common.entity.BaseEntity;
+import com.seth.backend.school.entity.School;
 
 import java.time.OffsetDateTime;
 import java.util.HashSet;
@@ -14,6 +15,10 @@ import java.util.Set;
 @Entity
 @Table(name = "users")
 public class User extends BaseEntity {
+
+   @ManyToOne(fetch = FetchType.LAZY, optional = false)
+   @JoinColumn(name = "school_id", nullable = false)
+   private School school;
 
    @Column(nullable = false, unique = true, length = 100)
    private String username;

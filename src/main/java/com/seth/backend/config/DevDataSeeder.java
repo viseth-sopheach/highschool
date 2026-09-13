@@ -1,5 +1,7 @@
 package com.seth.backend.config;
 
+import com.seth.backend.school.entity.School;
+import com.seth.backend.school.repository.SchoolRepository;
 import com.seth.backend.user.entity.Role;
 import com.seth.backend.user.entity.User;
 import com.seth.backend.user.entity.UserStatus;
@@ -19,16 +21,6 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Set;
 
-/**
- * Dev-only bootstrap: on first startup, if no "admin" user exists yet,
- * creates one with the PRINCIPAL role and a random password printed once
- * to the logs. This is how you get into the system before any
- * user-management/registration endpoints exist.
- * <p>
- * Deliberately gated to the "dev" profile via {@code @Profile}. Production
- * accounts must be provisioned on purpose (e.g. a one-off admin CLI command
- * or a controlled migration), never auto-seeded on startup.
- */
 @Configuration
 @Profile("dev")
 @RequiredArgsConstructor
@@ -36,9 +28,11 @@ public class DevDataSeeder {
 
    private static final Logger log = LoggerFactory.getLogger(DevDataSeeder.class);
    private static final String SEED_USERNAME = "admin";
+   private static final String DEFAULT_SCHOOL_CODE = "DEFAULT";
 
    private final UserRepository userRepository;
    private final RoleRepository roleRepository;
+   private final SchoolRepository schoolRepository;
    private final PasswordEncoder passwordEncoder;
 
    @Bean
@@ -49,6 +43,12 @@ public class DevDataSeeder {
             return;
          }
 
+         School school = schoolRepository.findAll().stream()
+                 .filter(s -> DEFAULT_SCHOOL_CODE.equals(s.getCode()))
+                 .findFirst()
+                 .orElseThrow(() -> new IllegalStateException(
+                         "Default school missing — check V14 migration ran before startup"));
+
          Role principalRole = roleRepository.findByName("PRINCIPAL")
                  .orElseThrow(() -> new IllegalStateException(
                          "PRINCIPAL role missing — check V1/V8 migrations ran before startup"));
@@ -56,6 +56,7 @@ public class DevDataSeeder {
          String rawPassword = generateRandomPassword();
 
          User admin = new User();
+         admin.setSchool(school);
          admin.setUsername(SEED_USERNAME);
          admin.setEmail("admin@seth.local");
          admin.setPasswordHash(passwordEncoder.encode(rawPassword));

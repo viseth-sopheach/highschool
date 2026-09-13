@@ -8,11 +8,14 @@ import java.util.Collection;
 public class JwtAuthenticationToken extends AbstractAuthenticationToken {
 
    private final Long userId;
+   private final Long schoolId;
    private final String username;
 
-   public JwtAuthenticationToken(Long userId, String username, Collection<? extends GrantedAuthority> authorities) {
+   public JwtAuthenticationToken(Long userId, Long schoolId, String username,
+                                 Collection<? extends GrantedAuthority> authorities) {
       super(authorities);
       this.userId = userId;
+      this.schoolId = schoolId;
       this.username = username;
       setAuthenticated(true);
    }
@@ -29,5 +32,9 @@ public class JwtAuthenticationToken extends AbstractAuthenticationToken {
 
    public Long getUserId() {
       return userId;
+   }
+
+   public Long getSchoolId() {
+      return schoolId;
    }
 }

@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AcademicYearRepository extends JpaRepository<AcademicYear, Long> {
-   List<AcademicYear> findAllByOrderByStartDateDesc();
-
-   Optional<AcademicYear> findByCurrentTrue();
+   List<AcademicYear> findBySchool_IdOrderByStartDateDesc(Long schoolId);
+   Optional<AcademicYear> findBySchool_IdAndCurrentTrue(Long schoolId);
 }

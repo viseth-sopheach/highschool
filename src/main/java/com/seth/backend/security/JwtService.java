@@ -35,6 +35,7 @@ public class JwtService {
       return Jwts.builder()
               .subject(principal.getUsername())
               .claim("uid", principal.getId())
+              .claim("sid", principal.getSchoolId())
               .claim("authorities", authorities)
               .issuedAt(now)
               .expiration(expiry)
@@ -48,6 +49,10 @@ public class JwtService {
 
    public Long extractUserId(String token) {
       return parseClaims(token).get("uid", Long.class);
+   }
+
+   public Long extractSchoolId(String token) {
+      return parseClaims(token).get("sid", Long.class);
    }
 
    @SuppressWarnings("unchecked")

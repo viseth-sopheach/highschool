@@ -2,8 +2,10 @@ package com.seth.backend.user.service;
 
 import com.seth.backend.audit.AuditActions;
 import com.seth.backend.audit.service.AuditLogService;
+import com.seth.backend.exception.AccessDeniedOnResourceException;
 import com.seth.backend.exception.DuplicateResourceException;
 import com.seth.backend.exception.ResourceNotFoundException;
+import com.seth.backend.school.repository.SchoolRepository;
 import com.seth.backend.security.SecurityUtils;
 import com.seth.backend.user.dto.UserCreateRequest;
 import com.seth.backend.user.dto.UserResponse;
@@ -35,18 +37,21 @@ public class UserService {
 
    private final UserRepository userRepository;
    private final RoleRepository roleRepository;
+   private final SchoolRepository schoolRepository;
    private final UserMapper userMapper;
    private final PasswordEncoder passwordEncoder;
    private final AuditLogService auditLogService;
 
    public Page<UserResponse> list(String search, Pageable pageable) {
       String normalized = (search == null || search.isBlank()) ? null : search.trim();
-      return userRepository.search(normalized, pageable).map(userMapper::toResponse);
+      return userRepository.searchBySchool(SecurityUtils.currentSchoolId(), normalized, pageable)
+              .map(userMapper::toResponse);
    }
 
    public UserResponse getById(Long id) {
       User user = userRepository.findWithRolesById(id)
               .orElseThrow(() -> ResourceNotFoundException.of("User", id));
+      assertSameSchool(user);
       return userMapper.toResponse(user);
    }
 
@@ -62,6 +67,7 @@ public class UserService {
       }
 
       User user = new User();
+      user.setSchool(schoolRepository.getReferenceById(SecurityUtils.currentSchoolId()));
       user.setUsername(request.username());
       user.setEmail(request.email());
       user.setPasswordHash(passwordEncoder.encode(request.password()));
@@ -78,6 +84,7 @@ public class UserService {
    public UserResponse updateStatus(Long id, UserStatusUpdateRequest request) {
       User user = userRepository.findWithRolesById(id)
               .orElseThrow(() -> ResourceNotFoundException.of("User", id));
+      assertSameSchool(user);
 
       UserStatus previous = user.getStatus();
       user.setStatus(request.status());
@@ -95,6 +102,7 @@ public class UserService {
    public UserResponse assignRoles(Long id, UserRoleAssignRequest request) {
       User user = userRepository.findWithRolesById(id)
               .orElseThrow(() -> ResourceNotFoundException.of("User", id));
+      assertSameSchool(user);
 
       Set<String> previousRoleNames = user.getRoles().stream().map(Role::getName)
               .collect(Collectors.toCollection(TreeSet::new));
@@ -112,5 +120,11 @@ public class UserService {
                  .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + name)));
       }
       return roles;
+   }
+
+   private void assertSameSchool(User user) {
+      if (!user.getSchool().getId().equals(SecurityUtils.currentSchoolId())) {
+         throw new AccessDeniedOnResourceException("This user does not belong to your school.");
+      }
    }
 }

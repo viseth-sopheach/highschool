@@ -1,9 +1,8 @@
 package com.seth.backend.academic.entity;
 
 import com.seth.backend.common.entity.IdentityEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import com.seth.backend.school.entity.School;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,6 +13,10 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "grading_scales")
 public class GradingScale extends IdentityEntity {
+
+   @ManyToOne(fetch = FetchType.LAZY, optional = false)
+   @JoinColumn(name = "school_id", nullable = false)
+   private School school;
 
    @Column(name = "min_score", nullable = false)
    private BigDecimal minScore;

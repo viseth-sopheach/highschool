@@ -1,7 +1,11 @@
 package com.seth.backend.teacher.service;
 
+import com.seth.backend.audit.AuditActions;
+import com.seth.backend.audit.service.AuditLogService;
+import com.seth.backend.exception.AccessDeniedOnResourceException;
 import com.seth.backend.exception.DuplicateResourceException;
 import com.seth.backend.exception.ResourceNotFoundException;
+import com.seth.backend.school.repository.SchoolRepository;
 import com.seth.backend.security.SecurityUtils;
 import com.seth.backend.teacher.dto.TeacherCreateRequest;
 import com.seth.backend.teacher.dto.TeacherResponse;
@@ -17,6 +21,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -24,20 +30,22 @@ public class TeacherService {
 
    private final TeacherRepository teacherRepository;
    private final UserRepository userRepository;
+   private final SchoolRepository schoolRepository;
    private final TeacherMapper teacherMapper;
+   private final AuditLogService auditLogService;
 
    public Page<TeacherResponse> list(String search, Pageable pageable) {
       String normalized = (search == null || search.isBlank()) ? null : search.trim();
-      return teacherRepository.search(normalized, pageable).map(teacherMapper::toResponse);
+      return teacherRepository.search(SecurityUtils.currentSchoolId(), normalized, pageable).map(teacherMapper::toResponse);
    }
 
    public TeacherResponse getById(Long id) {
       Teacher teacher = teacherRepository.findWithUserById(id)
               .orElseThrow(() -> ResourceNotFoundException.of("Teacher", id));
+      assertSameSchool(teacher);
       return teacherMapper.toResponse(teacher);
    }
 
-   /** Lets a logged-in teacher fetch their own profile without needing TEACHER_READ. */
    public TeacherResponse getByCurrentUser() {
       Long userId = SecurityUtils.currentUserId();
       Teacher teacher = teacherRepository.findWithUserByUserId(userId)
@@ -50,16 +58,21 @@ public class TeacherService {
       User user = userRepository.findById(request.userId())
               .orElseThrow(() -> ResourceNotFoundException.of("User", request.userId()));
 
+      Long schoolId = SecurityUtils.currentSchoolId();
+      if (!user.getSchool().getId().equals(schoolId)) {
+         throw new AccessDeniedOnResourceException("User does not belong to your school.");
+      }
       if (teacherRepository.existsByUserId(request.userId())) {
          throw new DuplicateResourceException(
                  "User " + request.userId() + " is already linked to a teacher record.");
       }
-      if (teacherRepository.existsByTeacherCode(request.teacherCode())) {
+      if (teacherRepository.existsBySchool_IdAndTeacherCode(schoolId, request.teacherCode())) {
          throw new DuplicateResourceException(
                  "Teacher code '" + request.teacherCode() + "' is already in use.");
       }
 
       Teacher teacher = new Teacher();
+      teacher.setSchool(schoolRepository.getReferenceById(schoolId));
       teacher.setUser(user);
       teacher.setTeacherCode(request.teacherCode());
       teacher.setKhmerName(request.khmerName());
@@ -67,27 +80,39 @@ public class TeacherService {
       teacher.setPhone(request.phone());
       teacher.setHireDate(request.hireDate());
 
-      return teacherMapper.toResponse(teacherRepository.save(teacher));
+      Teacher saved = teacherRepository.save(teacher);
+      auditLogService.record(SecurityUtils.currentUserId(), AuditActions.TEACHER_CREATED, "Teacher", saved.getId(),
+              Map.of("teacherCode", saved.getTeacherCode()));
+      return teacherMapper.toResponse(saved);
    }
 
    @Transactional
    public TeacherResponse update(Long id, TeacherUpdateRequest request) {
       Teacher teacher = teacherRepository.findWithUserById(id)
               .orElseThrow(() -> ResourceNotFoundException.of("Teacher", id));
+      assertSameSchool(teacher);
 
       teacher.setKhmerName(request.khmerName());
       teacher.setEnglishName(request.englishName());
       teacher.setPhone(request.phone());
       teacher.setHireDate(request.hireDate());
 
+      auditLogService.record(SecurityUtils.currentUserId(), AuditActions.TEACHER_UPDATED, "Teacher", id);
       return teacherMapper.toResponse(teacher);
    }
 
    @Transactional
    public void delete(Long id) {
-      if (!teacherRepository.existsById(id)) {
-         throw ResourceNotFoundException.of("Teacher", id);
-      }
+      Teacher teacher = teacherRepository.findWithUserById(id)
+              .orElseThrow(() -> ResourceNotFoundException.of("Teacher", id));
+      assertSameSchool(teacher);
       teacherRepository.deleteById(id);
+      auditLogService.record(SecurityUtils.currentUserId(), AuditActions.TEACHER_DELETED, "Teacher", id);
+   }
+
+   private void assertSameSchool(Teacher teacher) {
+      if (!teacher.getSchool().getId().equals(SecurityUtils.currentSchoolId())) {
+         throw new AccessDeniedOnResourceException("This teacher does not belong to your school.");
+      }
    }
 }

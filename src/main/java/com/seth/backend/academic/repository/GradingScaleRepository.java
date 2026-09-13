@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface GradingScaleRepository extends JpaRepository<GradingScale, Long> {
-   List<GradingScale> findAllByOrderByMinScoreDesc();
+   List<GradingScale> findBySchool_IdOrderByMinScoreDesc(Long schoolId);
 }

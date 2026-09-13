@@ -34,4 +34,5 @@ public final class PermissionConstants {
    public static final String USER_MANAGE = "hasAuthority('PERM_USER_MANAGE')";
    public static final String ROLE_MANAGE = "hasAuthority('PERM_ROLE_MANAGE')";
    public static final String AUDIT_READ = "hasAuthority('PERM_AUDIT_READ')";
+   public static final String SCHOOL_MANAGE = "hasAuthority('PERM_SCHOOL_MANAGE')";
 }

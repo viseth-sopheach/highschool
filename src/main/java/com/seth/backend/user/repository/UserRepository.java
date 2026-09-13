@@ -21,11 +21,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
    @EntityGraph(attributePaths = "roles")
    @Query("""
            select u from User u
-           where (:search is null
+           where u.school.id = :schoolId
+             and (:search is null
                   or lower(u.username) like lower(concat('%', :search, '%'))
                   or lower(u.email) like lower(concat('%', :search, '%')))
            """)
-   Page<User> search(@Param("search") String search, Pageable pageable);
+   Page<User> searchBySchool(@Param("schoolId") Long schoolId, @Param("search") String search, Pageable pageable);
 
    boolean existsByUsername(String username);
 

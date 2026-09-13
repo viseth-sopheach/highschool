@@ -15,12 +15,13 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
    @EntityGraph(attributePaths = "user")
    @Query("""
            select s from Student s
-           where (:search is null
+           where s.school.id = :schoolId
+             and (:search is null
                   or lower(s.khmerName) like lower(concat('%', :search, '%'))
                   or lower(s.englishName) like lower(concat('%', :search, '%'))
                   or lower(s.studentCode) like lower(concat('%', :search, '%')))
            """)
-   Page<Student> search(@Param("search") String search, Pageable pageable);
+   Page<Student> search(@Param("schoolId") Long schoolId, @Param("search") String search, Pageable pageable);
 
    @EntityGraph(attributePaths = "user")
    Optional<Student> findWithUserById(Long id);
@@ -28,7 +29,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
    @EntityGraph(attributePaths = "user")
    Optional<Student> findWithUserByUserId(Long userId);
 
-   boolean existsByStudentCode(String studentCode);
+   boolean existsBySchool_IdAndStudentCode(Long schoolId, String studentCode);
 
    boolean existsByUserId(Long userId);
 }

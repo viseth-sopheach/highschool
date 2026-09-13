@@ -15,11 +15,13 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Long> 
    @EntityGraph(attributePaths = {"academicYear", "grade", "studyTrack"})
    @Query("""
            select c from SchoolClass c
-           where (:academicYearId is null or c.academicYear.id = :academicYearId)
+           where c.school.id = :schoolId
+             and (:academicYearId is null or c.academicYear.id = :academicYearId)
              and (:gradeId is null or c.grade.id = :gradeId)
              and (:search is null or lower(c.name) like lower(concat('%', :search, '%')))
            """)
    Page<SchoolClass> search(
+           @Param("schoolId") Long schoolId,
            @Param("academicYearId") Long academicYearId,
            @Param("gradeId") Long gradeId,
            @Param("search") String search,
@@ -31,12 +33,6 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Long> 
    boolean existsByAcademicYearIdAndGradeIdAndStudyTrackIdAndName(
            Long academicYearId, Long gradeId, Long studyTrackId, String name);
 
-   /**
-    * uq_school_classes_identity is a plain UNIQUE constraint over a nullable
-    * study_track_id column — Postgres treats NULL <> NULL, so that DB
-    * constraint alone won't stop two "no-track" classes from getting the
-    * same (year, grade, name). This app-level check closes that gap.
-    */
    boolean existsByAcademicYearIdAndGradeIdAndStudyTrackIdIsNullAndName(
            Long academicYearId, Long gradeId, String name);
 }

@@ -19,6 +19,10 @@ public final class SecurityUtils {
       return currentToken().getUserId();
    }
 
+   public static Long currentSchoolId() {
+      return currentToken().getSchoolId();
+   }
+
    public static String currentUsername() {
       return currentToken().getPrincipal().toString();
    }
