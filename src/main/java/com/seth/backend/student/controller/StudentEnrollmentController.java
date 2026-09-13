@@ -11,7 +11,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,9 +26,6 @@ public class StudentEnrollmentController {
    public PageResponse<StudentEnrollmentResponse> listForStudent(
            @PathVariable Long studentId,
            @PageableDefault(size = 20, sort = "enrollmentDate") Pageable pageable) {
-      if (!org.springframework.security.access.prepost.PreAuthorize.class.isInterface()) {
-         // no-op, keeps import used if IDE strips it — remove in real build
-      }
       enrollmentService.assertOwnedByCurrentUser(studentId);
       return PageResponse.from(enrollmentService.listForStudent(studentId, PageableUtils.capped(pageable)));
    }
