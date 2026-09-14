@@ -27,4 +27,7 @@ public final class AuditActions {
 
    public static final String SCORE_UPSERTED = "SCORE_UPSERTED";
    public static final String ATTENDANCE_MARKED = "ATTENDANCE_MARKED";
+
+   public static final String GOOGLE_LOGIN_SUCCESS = "GOOGLE_LOGIN_SUCCESS";
+   public static final String GOOGLE_ACCOUNT_CREATED = "GOOGLE_ACCOUNT_CREATED";
 }

@@ -1,15 +1,20 @@
 package com.seth.backend.auth.service;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.seth.backend.audit.AuditActions;
 import com.seth.backend.audit.service.AuditLogService;
 import com.seth.backend.auth.dto.AuthResponse;
+import com.seth.backend.auth.dto.GoogleLoginRequest;
 import com.seth.backend.auth.dto.LoginRequest;
 import com.seth.backend.auth.dto.RefreshRequest;
 import com.seth.backend.auth.entity.RefreshToken;
 import com.seth.backend.auth.repository.RefreshTokenRepository;
 import com.seth.backend.config.JwtProperties;
 import com.seth.backend.exception.AccountLockedException;
+import com.seth.backend.exception.AccountPendingApprovalException;
 import com.seth.backend.exception.InvalidTokenException;
+import com.seth.backend.school.entity.School;
+import com.seth.backend.school.repository.SchoolRepository;
 import com.seth.backend.security.JwtService;
 import com.seth.backend.security.UserPrincipal;
 import com.seth.backend.user.entity.User;
@@ -19,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +50,9 @@ public class AuthService {
    private final JwtService jwtService;
    private final JwtProperties jwtProperties;
    private final AuditLogService auditLogService;
+   private final GoogleIdTokenVerifier googleIdTokenVerifier;
+   private final SchoolRepository schoolRepository;
+   private final PasswordEncoder passwordEncoder;
 
    /**
     * noRollbackFor(BadCredentialsException) is load-bearing: this method
@@ -52,38 +61,61 @@ public class AuthService {
     * failed-attempt counter increment inside registerFailedAttempt() —
     * meaning lockout after N attempts would never actually trigger.
     */
-   @Transactional(noRollbackFor = BadCredentialsException.class)
-   public AuthResponse login(LoginRequest request) {
-      User user = userRepository.findWithRolesAndPermissionsByUsername(request.username())
-              .orElseThrow(() -> new BadCredentialsException("Invalid username or password."));
-
-      if (user.getStatus() == UserStatus.LOCKED
-              && user.getLockedUntil() != null
-              && user.getLockedUntil().isAfter(OffsetDateTime.now())) {
-         auditLogService.record(user.getId(), AuditActions.LOGIN_FAILURE, "User", user.getId(),
-                 Map.of("reason", "account_locked"));
-         throw new AccountLockedException("Account is locked until " + user.getLockedUntil());
-      }
-
+   @Transactional
+   public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
+      com.google.api.client.googleapis.auth.oauth2.GoogleIdToken idToken;
       try {
-         authenticationManager.authenticate(
-                 new UsernamePasswordAuthenticationToken(request.username(), request.password()));
-      } catch (BadCredentialsException ex) {
-         registerFailedAttempt(user);
-         throw ex;
+         idToken = googleIdTokenVerifier.verify(request.idToken());
+      } catch (Exception e) {
+         throw new InvalidTokenException("Could not verify Google token.");
+      }
+      if (idToken == null) {
+         throw new InvalidTokenException("Invalid Google token.");
       }
 
-      user.setFailedLoginAttempts((short) 0);
-      user.setLockedUntil(null);
-      user.setLastLoginAt(OffsetDateTime.now());
+      var payload = idToken.getPayload();
+      if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
+         throw new InvalidTokenException("Google account email is not verified.");
+      }
+      String email = payload.getEmail();
+
+      var existing = userRepository.findWithRolesAndPermissionsByEmail(email);
+      if (existing.isPresent()) {
+         User user = existing.get();
+         if (user.getStatus() == UserStatus.PENDING) {
+            throw new AccountPendingApprovalException("Your account is awaiting administrator approval.");
+         }
+         if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new AccountLockedException("This account is not active. Contact your school administrator.");
+         }
+
+         user.setLastLoginAt(OffsetDateTime.now());
+         userRepository.save(user);
+         auditLogService.record(user.getId(), AuditActions.GOOGLE_LOGIN_SUCCESS, "User", user.getId());
+
+         UserPrincipal principal = new UserPrincipal(user);
+         String accessToken = jwtService.generateAccessToken(principal);
+         String refreshToken = issueRefreshToken(user);
+         return new AuthResponse(accessToken, refreshToken, jwtProperties.getAccessTokenExpirationMs());
+      }
+
+      // First-time Google identity: create an inert, unapproved account.
+      School defaultSchool = schoolRepository.findByCode("DEFAULT")
+              .orElseThrow(() -> new IllegalStateException("Default school not configured."));
+
+      User user = new User();
+      user.setSchool(defaultSchool);
+      user.setUsername(email);
+      user.setEmail(email);
+      user.setPasswordHash(passwordEncoder.encode(generateRawToken())); // random, never usable via normal login
+      user.setStatus(UserStatus.PENDING);
       userRepository.save(user);
-      auditLogService.record(user.getId(), AuditActions.LOGIN_SUCCESS, "User", user.getId());
 
-      UserPrincipal principal = new UserPrincipal(user);
-      String accessToken = jwtService.generateAccessToken(principal);
-      String refreshToken = issueRefreshToken(user);
+      auditLogService.record(user.getId(), AuditActions.GOOGLE_ACCOUNT_CREATED, "User", user.getId(),
+              Map.of("email", email));
 
-      return new AuthResponse(accessToken, refreshToken, jwtProperties.getAccessTokenExpirationMs());
+      throw new AccountPendingApprovalException(
+              "Account created. An administrator must approve and assign your role before you can sign in.");
    }
 
    @Transactional

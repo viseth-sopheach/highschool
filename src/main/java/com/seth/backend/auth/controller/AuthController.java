@@ -1,6 +1,7 @@
 package com.seth.backend.auth.controller;
 
 import com.seth.backend.auth.dto.AuthResponse;
+import com.seth.backend.auth.dto.GoogleLoginRequest;
 import com.seth.backend.auth.dto.LoginRequest;
 import com.seth.backend.auth.dto.RefreshRequest;
 import com.seth.backend.auth.service.AuthService;
@@ -33,5 +34,10 @@ public class AuthController {
    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshRequest request) {
       authService.logout(request);
       return ResponseEntity.noContent().build();
+   }
+
+   @PostMapping("/google")
+   public ResponseEntity<AuthResponse> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request) {
+      return ResponseEntity.ok(authService.loginWithGoogle(request));
    }
 }

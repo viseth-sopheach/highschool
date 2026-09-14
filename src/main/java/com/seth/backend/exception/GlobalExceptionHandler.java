@@ -149,6 +149,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
               "An unexpected error occurred. Please try again later.",
               "https://api.seth.com/errors/internal");
    }
+   @ExceptionHandler(AccountPendingApprovalException.class)
+   public ProblemDetail handleAccountPendingApproval(AccountPendingApprovalException ex) {
+      return problem(HttpStatus.FORBIDDEN, "Account Pending Approval", ex.getMessage(),
+              "https://api.seth.com/errors/account-pending-approval");
+   }
 
    // ---- helper -------------------------------------------------------------
 
