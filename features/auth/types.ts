@@ -9,3 +9,7 @@ export interface AuthResponse {
   refreshToken: string;
   expiresInMs: number;
 }
+
+export interface GoogleLoginRequest {
+  idToken: string;
+}
