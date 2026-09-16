@@ -13,7 +13,7 @@ export function DashboardSidebar() {
 
   return (
     <aside className="hidden w-56 shrink-0 border-r bg-sidebar text-sidebar-foreground md:flex md:flex-col">
-      <div className="px-4 py-4 text-sm font-semibold">Cambodia HSMS</div>
+      <div className="px-4 py-4 text-sm font-semibold">Mesang HighSchool</div>
       <nav className="flex-1 space-y-0.5 px-2">
         {items.map((item) => {
           const active = pathname === item.href;
