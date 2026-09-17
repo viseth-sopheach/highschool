@@ -33,10 +33,10 @@ public class DevDataSeeder {
    private final SchoolRepository schoolRepository;
    private final PasswordEncoder passwordEncoder;
 
-   @Value("${app.dev-admin.username:viseth@gmail.com}")
+   @Value("${app.dev-admin.username:visethsopheach@gmail.com}")
    private String devAdminUsername;
 
-   @Value("${app.dev-admin.email:viseth@gmail.com}")
+   @Value("${app.dev-admin.email:visethsopheach@gmail.com}")
    private String devAdminEmail;
 
    @Value("${app.dev-admin.password:Admin@123}")

@@ -23,7 +23,6 @@ import com.seth.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,12 +54,47 @@ public class AuthService {
    private final PasswordEncoder passwordEncoder;
 
    /**
-    * noRollbackFor(BadCredentialsException) is load-bearing: this method
-    * rethrows that exception on bad credentials, and without the override
+    * noRollbackFor(BadCredentialsException) is load-bearing: on bad password
+    * this method rethrows BadCredentialsException, and without the override
     * Spring's default unchecked-exception rollback would also undo the
     * failed-attempt counter increment inside registerFailedAttempt() —
     * meaning lockout after N attempts would never actually trigger.
     */
+   @Transactional(noRollbackFor = BadCredentialsException.class)
+   public AuthResponse login(LoginRequest request) {
+      User user = userRepository.findWithRolesAndPermissionsByUsername(request.username())
+              .orElseThrow(() -> new BadCredentialsException("Invalid username or password."));
+
+      if (user.getStatus() == UserStatus.LOCKED) {
+         if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(OffsetDateTime.now())) {
+            throw new AccountLockedException("Account is locked due to too many failed attempts. Try again later.");
+         }
+         // Lock window expired — auto-unlock before evaluating credentials.
+         user.setStatus(UserStatus.ACTIVE);
+         user.setFailedLoginAttempts((short) 0);
+         user.setLockedUntil(null);
+      } else if (user.getStatus() == UserStatus.PENDING) {
+         throw new AccountPendingApprovalException("Your account is awaiting administrator approval.");
+      } else if (user.getStatus() == UserStatus.DISABLED) {
+         throw new AccountLockedException("This account is disabled. Contact your school administrator.");
+      }
+
+      if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+         registerFailedAttempt(user);
+         throw new BadCredentialsException("Invalid username or password.");
+      }
+
+      user.setFailedLoginAttempts((short) 0);
+      user.setLastLoginAt(OffsetDateTime.now());
+      userRepository.save(user);
+      auditLogService.record(user.getId(), AuditActions.LOGIN_SUCCESS, "User", user.getId());
+
+      UserPrincipal principal = new UserPrincipal(user);
+      String accessToken = jwtService.generateAccessToken(principal);
+      String refreshToken = issueRefreshToken(user);
+      return new AuthResponse(accessToken, refreshToken, jwtProperties.getAccessTokenExpirationMs());
+   }
+
    @Transactional
    public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
       com.google.api.client.googleapis.auth.oauth2.GoogleIdToken idToken;
@@ -99,7 +133,6 @@ public class AuthService {
          return new AuthResponse(accessToken, refreshToken, jwtProperties.getAccessTokenExpirationMs());
       }
 
-      // First-time Google identity: create an inert, unapproved account.
       School defaultSchool = schoolRepository.findByCode("DEFAULT")
               .orElseThrow(() -> new IllegalStateException("Default school not configured."));
 
@@ -107,7 +140,7 @@ public class AuthService {
       user.setSchool(defaultSchool);
       user.setUsername(email);
       user.setEmail(email);
-      user.setPasswordHash(passwordEncoder.encode(generateRawToken())); // random, never usable via normal login
+      user.setPasswordHash(passwordEncoder.encode(generateRawToken()));
       user.setStatus(UserStatus.PENDING);
       userRepository.save(user);
 
