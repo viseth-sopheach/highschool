@@ -29,8 +29,8 @@ const PAGE_SIZE = 20;
 
 export default function ClassesPage() {
   const authorities = useAuthorities();
-  const canRead = hasPermission(authorities, "PERM_CLASS_READ");
-  const canWrite = hasPermission(authorities, "PERM_CLASS_WRITE");
+  const canRead = hasPermission(authorities, "CLASS_READ");
+  const canWrite = hasPermission(authorities, "CLASS_WRITE");
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
