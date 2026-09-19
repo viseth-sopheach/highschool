@@ -13,9 +13,11 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 
 @Getter
 @Setter
+@Filter(name = "schoolFilter", condition = "school_id = :schoolId")
 @Entity
 @Table(name = "school_classes")
 public class SchoolClass extends BaseEntity {

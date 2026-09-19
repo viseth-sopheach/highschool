@@ -5,9 +5,11 @@ import com.seth.backend.school.entity.School;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 
 @Getter
 @Setter
+@Filter(name = "schoolFilter", condition = "school_id = :schoolId")
 @Entity
 @Table(name = "grades")
 public class Grade extends IdentityEntity {

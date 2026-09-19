@@ -8,6 +8,8 @@ import com.seth.backend.assessment.entity.AssessmentType;
 import com.seth.backend.assessment.mapper.AssessmentMapper;
 import com.seth.backend.assessment.repository.AssessmentRepository;
 import com.seth.backend.assessment.repository.AssessmentTypeRepository;
+import com.seth.backend.assignment.repository.ClassTeacherAssignmentRepository;
+import com.seth.backend.exception.AccessDeniedOnResourceException;
 import com.seth.backend.exception.ResourceNotFoundException;
 import com.seth.backend.schoolclass.entity.SchoolClass;
 import com.seth.backend.schoolclass.repository.SchoolClassRepository;
@@ -35,6 +37,7 @@ public class AssessmentService {
    private final SubjectRepository subjectRepository;
    private final TeacherRepository teacherRepository;
    private final AssessmentMapper mapper;
+   private final ClassTeacherAssignmentRepository classTeacherAssignmentRepository;
 
    public List<AssessmentTypeResponse> listTypes() {
       return assessmentTypeRepository.findAll().stream()
@@ -51,6 +54,12 @@ public class AssessmentService {
               .orElseThrow(() -> ResourceNotFoundException.of("Assessment", id)));
    }
 
+   private void assertTeacherAssignedToClass(Long teacherId, Long schoolClassId) {
+      if (!classTeacherAssignmentRepository.existsBySchoolClass_IdAndTeacher_Id(schoolClassId, teacherId)) {
+         throw new AccessDeniedOnResourceException("You are not assigned to this class.");
+      }
+   }
+
    @Transactional
    public AssessmentResponse create(AssessmentCreateRequest request) {
       SchoolClass schoolClass = schoolClassRepository.findById(request.schoolClassId())
@@ -61,6 +70,7 @@ public class AssessmentService {
               .orElseThrow(() -> ResourceNotFoundException.of("AssessmentType", request.assessmentTypeId()));
       Teacher createdBy = teacherRepository.findWithUserByUserId(SecurityUtils.currentUserId())
               .orElseThrow(() -> new ResourceNotFoundException("No teacher profile linked to this account."));
+      assertTeacherAssignedToClass(createdBy.getId(), schoolClass.getId());
 
       Assessment assessment = new Assessment();
       assessment.setSchoolClass(schoolClass);

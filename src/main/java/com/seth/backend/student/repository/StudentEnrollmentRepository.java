@@ -6,10 +6,17 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
 public interface StudentEnrollmentRepository extends JpaRepository<StudentEnrollment, Long> {
+
+   @Modifying
+   @Query("update StudentEnrollment e set e.classPresident = false where e.schoolClass.id = :classId and e.classPresident = true")
+   int clearClassPresident(@Param("classId") Long classId);
 
    @EntityGraph(attributePaths = {"schoolClass", "schoolClass.academicYear", "schoolClass.grade", "schoolClass.studyTrack"})
    Page<StudentEnrollment> findByStudent_Id(Long studentId, Pageable pageable);

@@ -99,11 +99,7 @@ public class StudentEnrollmentService {
       StudentEnrollment target = enrollmentRepository.findWithRelationsById(enrollmentId)
               .orElseThrow(() -> ResourceNotFoundException.of("StudentEnrollment", enrollmentId));
 
-      enrollmentRepository.findBySchoolClass_Id(target.getSchoolClass().getId(), Pageable.unpaged())
-              .stream()
-              .filter(StudentEnrollment::isClassPresident)
-              .forEach(e -> e.setClassPresident(false));
-
+      enrollmentRepository.clearClassPresident(target.getSchoolClass().getId());
       target.setClassPresident(true);
       return mapper.toResponse(target);
    }

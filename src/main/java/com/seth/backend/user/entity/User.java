@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import com.seth.backend.common.entity.BaseEntity;
 import com.seth.backend.school.entity.School;
+import org.hibernate.annotations.Filter;
 
 import java.time.OffsetDateTime;
 import java.util.HashSet;
@@ -12,6 +13,7 @@ import java.util.Set;
 
 @Getter
 @Setter
+@Filter(name = "schoolFilter", condition = "school_id = :schoolId")
 @Entity
 @Table(name = "users")
 public class User extends BaseEntity {

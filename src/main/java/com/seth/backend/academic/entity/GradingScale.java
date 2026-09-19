@@ -5,11 +5,13 @@ import com.seth.backend.school.entity.School;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 
 import java.math.BigDecimal;
 
 @Getter
 @Setter
+@Filter(name = "schoolFilter", condition = "school_id = :schoolId")
 @Entity
 @Table(name = "grading_scales")
 public class GradingScale extends IdentityEntity {

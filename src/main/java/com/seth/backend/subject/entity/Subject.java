@@ -6,9 +6,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 
 @Getter
 @Setter
+@Filter(name = "schoolFilter", condition = "school_id = :schoolId")
 @Entity
 @Table(name = "subjects")
 public class Subject extends IdentityEntity {

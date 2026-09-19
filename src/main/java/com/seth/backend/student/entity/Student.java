@@ -6,12 +6,14 @@ import com.seth.backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 
 import java.time.LocalDate;
 
 @Getter
 @Setter
 @Entity
+@Filter(name = "schoolFilter", condition = "school_id = :schoolId")
 @Table(name = "students")
 public class Student extends BaseEntity {
 

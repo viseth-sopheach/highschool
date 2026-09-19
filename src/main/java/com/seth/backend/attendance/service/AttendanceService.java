@@ -1,5 +1,6 @@
 package com.seth.backend.attendance.service;
 
+import com.seth.backend.assignment.repository.ClassTeacherAssignmentRepository;
 import com.seth.backend.attendance.dto.AttendanceBulkMarkRequest;
 import com.seth.backend.attendance.dto.AttendanceMarkRequest;
 import com.seth.backend.attendance.dto.AttendanceResponse;
@@ -34,6 +35,7 @@ public class AttendanceService {
    private final SchoolClassRepository schoolClassRepository;
    private final TeacherRepository teacherRepository;
    private final AttendanceMapper mapper;
+   private final ClassTeacherAssignmentRepository classTeacherAssignmentRepository;
 
    public Page<AttendanceResponse> listForStudent(Long studentId, Pageable pageable) {
       return attendanceRepository.findByStudent_IdOrderByAttendanceDateDesc(studentId, pageable)
@@ -52,6 +54,7 @@ public class AttendanceService {
       SchoolClass schoolClass = schoolClassRepository.findById(request.schoolClassId())
               .orElseThrow(() -> ResourceNotFoundException.of("SchoolClass", request.schoolClassId()));
       Teacher recordedBy = currentTeacherOrThrow();
+      assertTeacherAssignedToClass(recordedBy.getId(), schoolClass.getId());   // <-- added
 
       AttendanceRecord record = attendanceRepository
               .findByStudent_IdAndSchoolClass_IdAndAttendanceDate(student.getId(), schoolClass.getId(), request.attendanceDate())
@@ -78,6 +81,7 @@ public class AttendanceService {
       SchoolClass schoolClass = schoolClassRepository.findById(request.schoolClassId())
               .orElseThrow(() -> ResourceNotFoundException.of("SchoolClass", request.schoolClassId()));
       Teacher recordedBy = currentTeacherOrThrow();
+      assertTeacherAssignedToClass(recordedBy.getId(), schoolClass.getId());   // <-- added
 
       return request.entries().stream().map(entry -> {
          Student student = studentRepository.findById(entry.studentId())
@@ -111,5 +115,11 @@ public class AttendanceService {
       Long userId = SecurityUtils.currentUserId();
       return teacherRepository.findWithUserByUserId(userId)
               .orElseThrow(() -> new ResourceNotFoundException("No teacher profile linked to this account."));
+   }
+
+   private void assertTeacherAssignedToClass(Long teacherId, Long schoolClassId) {
+      if (!classTeacherAssignmentRepository.existsBySchoolClass_IdAndTeacher_Id(schoolClassId, teacherId)) {
+         throw new AccessDeniedOnResourceException("You are not assigned to this class.");
+      }
    }
 }

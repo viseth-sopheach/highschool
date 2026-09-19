@@ -18,6 +18,7 @@ public interface ClassTeacherAssignmentRepository extends JpaRepository<ClassTea
 
    boolean existsBySchoolClass_IdAndTeacher_IdAndSubject_Id(Long schoolClassId, Long teacherId, Long subjectId);
 
+   boolean existsBySchoolClass_IdAndTeacher_Id(Long schoolClassId, Long teacherId);
    /** Handles the nullable-subject uniqueness gap the same way school_classes does. */
    boolean existsBySchoolClass_IdAndTeacher_IdAndSubjectIsNull(Long schoolClassId, Long teacherId);
 }

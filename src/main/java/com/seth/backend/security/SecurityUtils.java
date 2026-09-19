@@ -32,4 +32,12 @@ public final class SecurityUtils {
       return auth != null && auth.getAuthorities().stream()
               .anyMatch(a -> a.getAuthority().equals(authority));
    }
+
+   public static Long currentSchoolIdOrNull() {
+      Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+      if (auth == null || !(auth instanceof JwtAuthenticationToken token)) {
+         return null;
+      }
+      return token.getSchoolId();
+   }
 }

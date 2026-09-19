@@ -5,11 +5,13 @@ import com.seth.backend.school.entity.School;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
 
 import java.time.LocalDate;
 
 @Getter
 @Setter
+@Filter(name = "schoolFilter", condition = "school_id = :schoolId")
 @Entity
 @Table(name = "academic_years")
 public class AcademicYear extends CreatedOnlyEntity {
