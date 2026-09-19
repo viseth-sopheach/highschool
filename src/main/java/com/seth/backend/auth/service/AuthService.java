@@ -151,6 +151,22 @@ public class AuthService {
               "Account created. An administrator must approve and assign your role before you can sign in.");
    }
 
+   /**
+    * Refresh-token rotation with reuse detection.
+    * <p>
+    * Every successful refresh revokes the presented token and issues a new
+    * one, chaining {@code replacedBy} to form a lineage per login session.
+    * If a token that was already revoked *via rotation* (replacedBy set) is
+    * presented again, that's not "expired" or "logged out" — it's a strong
+    * signal the token was stolen and the legitimate client already moved on
+    * to its successor. In that case we revoke every active token for the
+    * user, forcing re-authentication on all devices, and record an audit
+    * event so it's visible to admins.
+    * <p>
+    * A token revoked via plain logout (replacedBy null) being replayed is
+    * unremarkable — just an expired/invalidated session — so it does not
+    * trigger the cascade.
+    */
    @Transactional
    public AuthResponse refresh(RefreshRequest request) {
       String hash = hashToken(request.refreshToken());
@@ -158,7 +174,15 @@ public class AuthService {
       RefreshToken existing = refreshTokenRepository.findByTokenHash(hash)
               .orElseThrow(() -> new InvalidTokenException("Refresh token not recognized."));
 
-      if (existing.isRevoked() || existing.getExpiresAt().isBefore(OffsetDateTime.now())) {
+      if (existing.isRevoked()) {
+         if (existing.getReplacedBy() != null) {
+            refreshTokenRepository.revokeAllActiveForUser(existing.getUser().getId());
+            auditLogService.record(existing.getUser().getId(),
+                    AuditActions.REFRESH_TOKEN_REUSE_DETECTED, "User", existing.getUser().getId());
+         }
+         throw new InvalidTokenException("Refresh token expired or revoked.");
+      }
+      if (existing.getExpiresAt().isBefore(OffsetDateTime.now())) {
          throw new InvalidTokenException("Refresh token expired or revoked.");
       }
 

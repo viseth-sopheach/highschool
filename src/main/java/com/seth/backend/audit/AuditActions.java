@@ -30,4 +30,6 @@ public final class AuditActions {
 
    public static final String GOOGLE_LOGIN_SUCCESS = "GOOGLE_LOGIN_SUCCESS";
    public static final String GOOGLE_ACCOUNT_CREATED = "GOOGLE_ACCOUNT_CREATED";
+
+   public static final String REFRESH_TOKEN_REUSE_DETECTED = "REFRESH_TOKEN_REUSE_DETECTED";
 }
