@@ -14,13 +14,13 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
    @EntityGraph(attributePaths = "user")
    @Query("""
-           select s from Student s
-           where s.school.id = :schoolId
-             and (:search is null
-                  or lower(s.khmerName) like lower(concat('%', :search, '%'))
-                  or lower(s.englishName) like lower(concat('%', :search, '%'))
-                  or lower(s.studentCode) like lower(concat('%', :search, '%')))
-           """)
+        select s from Student s
+        where s.school.id = :schoolId
+          and (:search = ''
+               or lower(s.khmerName) like lower(concat('%', :search, '%'))
+               or lower(s.englishName) like lower(concat('%', :search, '%'))
+               or lower(s.studentCode) like lower(concat('%', :search, '%')))
+        """)
    Page<Student> search(@Param("schoolId") Long schoolId, @Param("search") String search, Pageable pageable);
 
    @EntityGraph(attributePaths = "user")

@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.Set;
 
 @Configuration
@@ -43,37 +44,29 @@ public class DevDataSeeder {
    private String devAdminPassword;
 
    @Bean
-   @Transactional
    public CommandLineRunner seedInitialPrincipal() {
       return args -> {
-         if (userRepository.existsByUsername(devAdminUsername)) {
-            return;
-         }
-
-         School school = schoolRepository.findAll().stream()
-                 .filter(s -> DEFAULT_SCHOOL_CODE.equals(s.getCode()))
-                 .findFirst()
+         School school = schoolRepository.findByCode(DEFAULT_SCHOOL_CODE)
                  .orElseThrow(() -> new IllegalStateException(
                          "Default school missing — check V14 migration ran before startup"));
-
          Role principalRole = roleRepository.findByName("PRINCIPAL")
                  .orElseThrow(() -> new IllegalStateException(
                          "PRINCIPAL role missing — check V1/V8 migrations ran before startup"));
 
-         User admin = new User();
+         User admin = userRepository.findWithRolesAndPermissionsByUsername(devAdminUsername)
+                 .orElseGet(User::new);
+
          admin.setSchool(school);
          admin.setUsername(devAdminUsername);
          admin.setEmail(devAdminEmail);
          admin.setPasswordHash(passwordEncoder.encode(devAdminPassword));
          admin.setStatus(UserStatus.ACTIVE);
-         admin.setRoles(Set.of(principalRole));
+         admin.setFailedLoginAttempts((short) 0);
+         admin.setLockedUntil(null);
+         admin.setRoles(new HashSet<>(Set.of(principalRole)));
          userRepository.save(admin);
 
-         log.warn("=================================================================");
-         log.warn(" Seeded dev PRINCIPAL account -> username: {} / password: {}", devAdminUsername, devAdminPassword);
-         log.warn(" PRINCIPAL has every permission (V8 wildcard grant) — full route access.");
-         log.warn(" This only ever runs once, and only in the 'dev' profile.");
-         log.warn("=================================================================");
+         log.warn("Dev PRINCIPAL ready -> username: {} / password: {}", devAdminUsername, devAdminPassword);
       };
    }
 }

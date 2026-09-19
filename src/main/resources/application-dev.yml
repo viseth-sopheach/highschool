@@ -11,8 +11,8 @@ logging:
     com.seth.backend: DEBUG
 app:
   dev-admin:
-    username: ${DEV_ADMIN_USERNAME:viseth@gmail.com}
-    email: ${DEV_ADMIN_EMAIL:viseth@gmail.com}
+    username: ${DEV_ADMIN_USERNAME:visethsopheach@gmail.com}
+    email: ${DEV_ADMIN_EMAIL:visethsopheach@gmail.com}
     password: ${DEV_ADMIN_PASSWORD:Admin@123}
   cors:
     allowed-origins:
