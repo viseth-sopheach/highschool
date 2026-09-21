@@ -35,7 +35,7 @@ public class SchoolClassService {
    private final SchoolClassMapper mapper;
 
    public Page<SchoolClassResponse> list(Long academicYearId, Long gradeId, String search, Pageable pageable) {
-      String normalized = (search == null || search.isBlank()) ? null : search.trim();
+      String normalized = (search == null || search.isBlank()) ? "" : search.trim();
       return schoolClassRepository.search(SecurityUtils.currentSchoolId(), academicYearId, gradeId, normalized, pageable)
               .map(mapper::toResponse);
    }

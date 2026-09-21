@@ -43,7 +43,7 @@ public class UserService {
    private final AuditLogService auditLogService;
 
    public Page<UserResponse> list(String search, Pageable pageable) {
-      String normalized = (search == null || search.isBlank()) ? null : search.trim();
+      String normalized = (search == null || search.isBlank()) ? "" : search.trim();
       return userRepository.searchBySchool(SecurityUtils.currentSchoolId(), normalized, pageable)
               .map(userMapper::toResponse);
    }

@@ -18,7 +18,7 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Long> 
            where c.school.id = :schoolId
              and (:academicYearId is null or c.academicYear.id = :academicYearId)
              and (:gradeId is null or c.grade.id = :gradeId)
-             and (:search is null or lower(c.name) like lower(concat('%', :search, '%')))
+             and (:search = '' or lower(c.name) like lower(concat('%', :search, '%')))
            """)
    Page<SchoolClass> search(
            @Param("schoolId") Long schoolId,

@@ -35,8 +35,9 @@ public class TeacherService {
    private final AuditLogService auditLogService;
 
    public Page<TeacherResponse> list(String search, Pageable pageable) {
-      String normalized = (search == null || search.isBlank()) ? null : search.trim();
-      return teacherRepository.search(SecurityUtils.currentSchoolId(), normalized, pageable).map(teacherMapper::toResponse);
+      String normalized = (search == null || search.isBlank()) ? "" : search.trim();
+      return teacherRepository.search(SecurityUtils.currentSchoolId(), normalized, pageable)
+              .map(teacherMapper::toResponse);
    }
 
    public TeacherResponse getById(Long id) {
