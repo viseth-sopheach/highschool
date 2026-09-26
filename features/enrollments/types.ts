@@ -17,3 +17,10 @@ export interface EnrollmentListParams {
   page?: number;
   size?: number;
 }
+
+export const ENROLLMENT_STATUSES: EnrollmentStatus[] = [
+  "ACTIVE",
+  "TRANSFERRED",
+  "WITHDRAWN",
+  "GRADUATED",
+];

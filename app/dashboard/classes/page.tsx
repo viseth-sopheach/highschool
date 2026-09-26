@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { useAuthorities, hasPermission } from "@/lib/auth/roles";
 import { useSchoolClasses } from "@/features/school-classes/hooks/use-school-classes";
@@ -12,9 +13,28 @@ import type { SchoolClassResponse } from "@/features/school-classes/types";
 import { toApiError } from "@/lib/errors/api-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -62,15 +82,21 @@ export default function ClassesPage() {
   const deleteMutation = useDeleteSchoolClass();
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editingClass, setEditingClass] = useState<SchoolClassResponse | undefined>();
-  const [deletingClass, setDeletingClass] = useState<SchoolClassResponse | undefined>();
+  const [editingClass, setEditingClass] = useState<
+    SchoolClassResponse | undefined
+  >();
+  const [deletingClass, setDeletingClass] = useState<
+    SchoolClassResponse | undefined
+  >();
 
   if (!canRead) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Classes</CardTitle>
-          <CardDescription>You don&apos;t have permission to view classes.</CardDescription>
+          <CardDescription>
+            You don&apos;t have permission to view classes.
+          </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -124,7 +150,10 @@ export default function ClassesPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="sm:max-w-64"
             />
-            <Select value={academicYearId} onValueChange={(v) => setAcademicYearId(v === "all" ? "" : v)}>
+            <Select
+              value={academicYearId}
+              onValueChange={(v) => setAcademicYearId(v === "all" ? "" : v)}
+            >
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="All academic years" />
               </SelectTrigger>
@@ -137,7 +166,10 @@ export default function ClassesPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={gradeId} onValueChange={(v) => setGradeId(v === "all" ? "" : v)}>
+            <Select
+              value={gradeId}
+              onValueChange={(v) => setGradeId(v === "all" ? "" : v)}
+            >
               <SelectTrigger className="w-full sm:w-40">
                 <SelectValue placeholder="All grades" />
               </SelectTrigger>
@@ -160,26 +192,41 @@ export default function ClassesPage() {
                 <TableHead>Track</TableHead>
                 <TableHead>Academic year</TableHead>
                 <TableHead>Capacity</TableHead>
-                {canWrite && <TableHead className="text-right">Actions</TableHead>}
+                {canWrite && (
+                  <TableHead className="text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {classesQuery.isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={columnCount} className="py-8 text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={columnCount}
+                    className="py-8 text-center text-muted-foreground"
+                  >
                     Loading classes…
                   </TableCell>
                 </TableRow>
               ) : classes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={columnCount} className="py-8 text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={columnCount}
+                    className="py-8 text-center text-muted-foreground"
+                  >
                     No classes found.
                   </TableCell>
                 </TableRow>
               ) : (
                 classes.map((schoolClass) => (
                   <TableRow key={schoolClass.id}>
-                    <TableCell className="font-medium">{schoolClass.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/dashboard/classes/${schoolClass.id}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {schoolClass.name}
+                      </Link>
+                    </TableCell>
                     <TableCell>{schoolClass.gradeName}</TableCell>
                     <TableCell>{schoolClass.studyTrackName ?? "—"}</TableCell>
                     <TableCell>{schoolClass.academicYearName}</TableCell>
@@ -197,7 +244,11 @@ export default function ClassesPage() {
                           >
                             Edit
                           </Button>
-                          <Button variant="destructive" size="sm" onClick={() => setDeletingClass(schoolClass)}>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setDeletingClass(schoolClass)}
+                          >
                             Delete
                           </Button>
                         </div>
@@ -251,19 +302,30 @@ export default function ClassesPage() {
         />
       )}
 
-      <Dialog open={Boolean(deletingClass)} onOpenChange={(open) => !open && setDeletingClass(undefined)}>
+      <Dialog
+        open={Boolean(deletingClass)}
+        onOpenChange={(open) => !open && setDeletingClass(undefined)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete class</DialogTitle>
             <DialogDescription>
-              This will permanently delete class &quot;{deletingClass?.name}&quot;. This action cannot be undone.
+              This will permanently delete class &quot;{deletingClass?.name}
+              &quot;. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeletingClass(undefined)}>
+            <Button
+              variant="outline"
+              onClick={() => setDeletingClass(undefined)}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+            >
               {deleteMutation.isPending ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
