@@ -48,13 +48,10 @@ export function UserCreateDialog({ open, onOpenChange }: UserCreateDialogProps) 
   }, [open, form]);
 
   const errors = form.formState.errors;
-  const selectedRoles = form.watch("roleNames") ?? [];
+  const selectedRole = form.watch("roleNames")?.[0] ?? "";
 
-  const toggleRole = (role: UserRoleName, checked: boolean) => {
-    const current = new Set(selectedRoles);
-    if (checked) current.add(role);
-    else current.delete(role);
-    form.setValue("roleNames", Array.from(current), { shouldValidate: true });
+  const selectRole = (role: UserRoleName) => {
+    form.setValue("roleNames", [role], { shouldValidate: true });
   };
 
   const onSubmit = form.handleSubmit((values) => {
@@ -80,7 +77,7 @@ export function UserCreateDialog({ open, onOpenChange }: UserCreateDialogProps) 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New user</DialogTitle>
-          <DialogDescription>Create an account and assign its initial roles.</DialogDescription>
+          <DialogDescription>Create an account and assign its role.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-4">
@@ -107,15 +104,16 @@ export function UserCreateDialog({ open, onOpenChange }: UserCreateDialogProps) 
           </div>
 
           <div className="space-y-2">
-            <Label>Roles</Label>
+            <Label>Role</Label>
             <div className="grid grid-cols-2 gap-2">
               {USER_ROLE_NAMES.map((role) => (
                 <label key={role} className="flex items-center gap-2 text-sm">
                   <input
-                    type="checkbox"
-                    className="size-4 rounded border-input"
-                    checked={selectedRoles.includes(role)}
-                    onChange={(e) => toggleRole(role, e.target.checked)}
+                    type="radio"
+                    name="create-user-role"
+                    className="size-4 border-input"
+                    checked={selectedRole === role}
+                    onChange={() => selectRole(role)}
                   />
                   {ROLE_LABEL[role]}
                 </label>

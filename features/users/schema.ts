@@ -25,7 +25,11 @@ const passwordField = z
   .max(100, "Password must be 100 characters or fewer");
 
 // Mirrors @NotEmpty roleNames
-const roleNamesField = z.array(z.string()).min(1, "Select at least one role");
+// Mirrors @NotEmpty roleNames, but the UI only ever lets the user pick one.
+const roleNamesField = z
+  .array(z.string())
+  .min(1, "Select a role")
+  .max(1, "Select only one role");
 
 export const userCreateSchema = z.object({
   username: usernameField,
